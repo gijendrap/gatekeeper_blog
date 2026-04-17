@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GateKeeper CLI — Zero-Trust Pre-Publish Firewall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080C10;
+      --surface: #0D1117;
+      --surface2: #161B22;
+      --surface3: #21262D;
+      --border: rgba(48, 54, 61, 0.8);
+      --border-glow: rgba(88, 166, 255, 0.3);
+      --text: #E6EDF3;
+      --muted: #7D8590;
+      --accent-blue: #58A6FF;
+      --accent-green: #3FB950;
+      --accent-red: #F85149;
+      --accent-amber: #D29922;
+      --accent-purple: #BC8CFF;
+      --glow-blue: rgba(88, 166, 255, 0.08);
+      --glow-green: rgba(63, 185, 80, 0.08);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* Noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* Grid lines background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(88, 166, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(88, 166, 255, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+      background: rgba(8, 12, 16, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.05em;
+      text-decoration: none;
+    }
+
+    .nav-logo .shield {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #1A3C5E, #0D1F36);
+      border: 1px solid var(--accent-blue);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(63, 185, 80, 0.4);
+      color: var(--accent-green);
+      background: rgba(63, 185, 80, 0.06);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 2rem 80px;
+      overflow: hidden;
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(88, 166, 255, 0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      padding: 6px 14px;
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      border-radius: 20px;
+      background: rgba(88, 166, 255, 0.05);
+      margin-bottom: 2rem;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .hero-eyebrow .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(3rem, 8vw, 6.5rem);
+      line-height: 1.05;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.8s 0.1s ease both;
+      letter-spacing: -0.02em;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent-blue);
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.8;
+      margin-bottom: 2.5rem;
+      animation: fadeUp 0.8s 0.2s ease both;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp 0.8s 0.3s ease both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: var(--accent-blue);
+      color: #080C10;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary:hover {
+      background: #79BDFF;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(88, 166, 255, 0.25);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: transparent;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-secondary:hover {
+      border-color: rgba(88, 166, 255, 0.4);
+      background: var(--glow-blue);
+    }
+
+    /* terminal preview */
+    .terminal-preview {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      width: 100%;
+      margin: 4rem auto 0;
+      animation: fadeUp 0.8s 0.4s ease both;
+    }
+
+    .terminal-window {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 32px 64px rgba(0, 0, 0, 0.6),
+        0 0 80px rgba(88, 166, 255, 0.06);
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot.r {
+      background: #FF5F57;
+    }
+
+    .dot.y {
+      background: #FEBC2E;
+    }
+
+    .dot.g {
+      background: #28C840;
+    }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .t-prompt {
+      color: var(--accent-green);
+    }
+
+    .t-cmd {
+      color: var(--text);
+    }
+
+    .t-info {
+      color: var(--accent-blue);
+    }
+
+    .t-warn {
+      color: var(--accent-amber);
+    }
+
+    .t-error {
+      color: var(--accent-red);
+    }
+
+    .t-success {
+      color: var(--accent-green);
+    }
+
+    .t-muted {
+      color: var(--muted);
+    }
+
+    .t-bold {
+      font-weight: 700;
+    }
+
+    .t-line {
+      display: block;
+    }
+
+    /* cursor blink */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--accent-blue);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    /* ── SECTIONS ── */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    /* section label */
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .section-label::before {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 1px;
+      background: var(--muted);
+    }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .section-title em {
+      font-style: italic;
+      color: var(--accent-blue);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 6rem 0;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features {
+      padding: 6rem 0;
+    }
+
+    .features-header {
+      margin-bottom: 4rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      padding: 2rem;
+      transition: background 0.3s;
+      position: relative;
+    }
+
+    .feature-card:hover {
+      background: var(--surface2);
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-icon.blue {
+      background: rgba(88, 166, 255, 0.12);
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    .feature-icon.green {
+      background: rgba(63, 185, 80, 0.12);
+      border: 1px solid rgba(63, 185, 80, 0.2);
+    }
+
+    .feature-icon.red {
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid rgba(248, 81, 73, 0.2);
+    }
+
+    .feature-icon.amber {
+      background: rgba(210, 153, 34, 0.12);
+      border: 1px solid rgba(210, 153, 34, 0.2);
+    }
+
+    .feature-icon.purple {
+      background: rgba(188, 140, 255, 0.12);
+      border: 1px solid rgba(188, 140, 255, 0.2);
+    }
+
+    .feature-icon.teal {
+      background: rgba(29, 158, 117, 0.12);
+      border: 1px solid rgba(29, 158, 117, 0.2);
+    }
+
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how-it-works {
+      padding: 6rem 0;
+    }
+
+    .steps {
+      position: relative;
+      margin-top: 4rem;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      left: 23px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, var(--accent-blue), var(--accent-green), transparent);
+      opacity: 0.3;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 2rem;
+      margin-bottom: 3.5rem;
+      align-items: start;
+    }
+
+    .step-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .step-content {
+      padding-top: 10px;
+    }
+
+    .step-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    /* Code snippets */
+    .code-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-lang {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .code-copy {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      letter-spacing: 0.05em;
+    }
+
+    .code-copy:hover {
+      color: var(--accent-blue);
+    }
+
+    pre {
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: var(--text);
+    }
+
+    code .k {
+      color: var(--accent-purple);
+    }
+
+    code .s {
+      color: var(--accent-green);
+    }
+
+    code .c {
+      color: var(--muted);
+    }
+
+    code .n {
+      color: var(--accent-blue);
+    }
+
+    /* ── ARCHITECTURE ── */
+    .arch {
+      padding: 6rem 0;
+    }
+
+    .arch-diagram {
+      margin-top: 4rem;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 0;
+    }
+
+    .arch-column {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+
+    .arch-column h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+
+    .arch-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .arch-item .status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status.green {
+      background: var(--accent-green);
+    }
+
+    .status.red {
+      background: var(--accent-red);
+    }
+
+    .status.amber {
+      background: var(--accent-amber);
+    }
+
+    .status.blue {
+      background: var(--accent-blue);
+    }
+
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 0 1.5rem;
+    }
+
+    .arch-arrow-line {
+      width: 80px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+      position: relative;
+    }
+
+    .arch-arrow-line::after {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: -3px;
+      border: 4px solid transparent;
+      border-left: 6px solid var(--accent-green);
+    }
+
+    .arch-arrow-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* ── STATS ── */
+    .stats {
+      padding: 4rem 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+
+    .stat-item {
+      padding: 2rem;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-item:last-child {
+      border-right: none;
+    }
+
+    .stat-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 3rem;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value span {
+      color: var(--accent-blue);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── INSTALL ── */
+    .install {
+      padding: 8rem 0;
+      text-align: center;
+    }
+
+    .install-card {
+      max-width: 600px;
+      margin: 3rem auto 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .install-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    }
+
+    .install-cmd {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 1.5rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .install-cmd:hover {
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .install-cmd code {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--accent-green);
+      text-align: left;
+    }
+
+    .copy-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    /* ── PIPELINE ── */
+    .pipeline {
+      padding: 6rem 0;
+    }
+
+    .pipeline-steps {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 4rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .pipe-step {
+      flex: 1;
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+
+    .pipe-step:last-child {
+      border-right: none;
+    }
+
+    .pipe-step::after {
+      content: '→';
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 16px;
+      z-index: 2;
+      background: var(--surface);
+      padding: 0 2px;
+    }
+
+    .pipe-step:last-child::after {
+      display: none;
+    }
+
+    .pipe-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.1em;
+    }
+
+    .pipe-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .pipe-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .pipe-badge {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    .pipe-badge.blue {
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    .pipe-badge.green {
+      background: rgba(63, 185, 80, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.2);
+    }
+
+    .pipe-badge.amber {
+      background: rgba(210, 153, 34, 0.1);
+      color: var(--accent-amber);
+      border: 1px solid rgba(210, 153, 34, 0.2);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 3rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text);
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .arch-diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .arch-arrow {
+        transform: rotate(90deg);
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stat-item:nth-child(2) {
+        border-right: none;
+      }
+
+      .stat-item:nth-child(3) {
+        border-top: 1px solid var(--border);
+      }
+
+      .stat-item:nth-child(4) {
+        border-top: 1px solid var(--border);
+        border-right: none;
+      }
+
+      .pipeline-steps {
+        flex-direction: column;
+      }
+
+      .pipe-step {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .pipe-step::after {
+        content: '↓';
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -14px;
+      }
+
+      .pipe-step:last-child {
+        border-bottom: none;
+      }
+
+      nav .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <div class="shield">🛡</div>
+      GATEKEEPER
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it Works</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#install">Install</a></li>
+    </ul>
+    <span class="nav-badge">v0.1.1</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+
+    <div class="hero-eyebrow">
+      <span class="dot"></span>
+      Zero-Trust Pre-Publish Firewall
+    </div>
+
+    <h1>
+      Stop leaks<br>before they<br><em>ever happen.</em>
+    </h1>
+
+    <p class="hero-sub">
+      GateKeeper intercepts <code
+        style="font-family:'JetBrains Mono',monospace;font-size:0.9em;color:var(--accent-green)">git push</code> and
+      <code style="font-family:'JetBrains Mono',monospace;font-size:0.9em;color:var(--accent-green)">npm publish</code>
+      commands — scanning every file for IP leaks and API secrets before your code leaves your machine.
+    </p>
+
+    <div class="hero-ctas">
+      <a href="#install" class="btn-primary">$ pip install gatekeeper-cli</a>
+      <a href="#how-it-works" class="btn-secondary">See how it works →</a>
+    </div>
+
+    <div class="terminal-preview">
+      <div class="terminal-window">
+        <div class="terminal-bar">
+          <div class="dot-row">
+            <div class="dot r"></div>
+            <div class="dot y"></div>
+            <div class="dot g"></div>
+          </div>
+          <div class="terminal-title">bash — ~/my-project</div>
+          <div></div>
+        </div>
+        <div class="terminal-body">
+          <span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">git add . && git commit -m "new
+              feature" && git push</span></span>
+          <span class="t-line t-muted">[main a4f2c1d] new feature · 3 files changed</span>
+          <span class="t-line"><span class="t-info t-bold">GateKeeper intercepting:</span> <span
+              class="t-cmd">git-push</span></span>
+          <span class="t-line t-muted">Analyzing git diff for outgoing commits...</span>
+          <span class="t-line t-error t-bold">🚨 IP LEAK DETECTED 🚨</span>
+          <span class="t-line t-muted">The following files are NOT whitelisted:</span>
+          <span class="t-line"><span class="t-error"> ❌ secrets/api_keys.env</span></span>
+          <span class="t-line"><span class="t-error"> ❌ config/private.pem</span></span>
+          <span class="t-line t-warn">Strip private files from this commit? [y/N]:</span>
+          <span class="t-line"><span class="t-prompt">$ </span><span class="t-success t-bold">y</span></span>
+          <span class="t-line t-muted">Running Deep Secret Scan with Gitleaks...</span>
+          <span class="t-line t-success t-bold">✅ All GateKeeper Checks Passed!</span>
+          <span class="t-line t-success t-bold">✅ GIT-PUSH IS SAFE TO PROCEED</span><span class="cursor"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats fade-up">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value">20<span>+</span></div>
+          <div class="stat-label">Secret Patterns</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Shell Environments</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Trust by Default</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">2</div>
+          <div class="stat-label">Stage Evaluation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-header fade-up">
+        <span class="section-label">Core Capabilities</span>
+        <h2 class="section-title">Built for the paranoid<br><em>developer in all of us.</em></h2>
+      </div>
+
+      <div class="features-grid fade-up">
+        <div class="feature-card">
+          <div class="feature-icon blue">🛡️</div>
+          <div class="feature-title">Zero-Trust IP Vault</div>
+          <div class="feature-desc">Every file is private by default. You explicitly whitelist what's safe to publish.
+            Nothing sneaks out without your approval.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon green">🔍</div>
+          <div class="feature-title">Deep Secret Scanning</div>
+          <div class="feature-desc">Powered by Gitleaks — scans for 20+ API key patterns including OpenAI, AWS, Stripe,
+            GitHub, and raw RSA key blocks.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon amber">⚡</div>
+          <div class="feature-title">Shell Shim Injection</div>
+          <div class="feature-desc">Silently intercepts <code
+              style="font-size:12px;font-family:JetBrains Mono,monospace">git push</code> and <code
+              style="font-size:12px;font-family:JetBrains Mono,monospace">npm publish</code> in Bash, Zsh, and
+            PowerShell. Set it and forget it.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon purple">🎛️</div>
+          <div class="feature-title">Interactive TUI</div>
+          <div class="feature-desc">A rich terminal UI lets you visually toggle files between PUBLIC, PRIVATE, and MIXED
+            states with real-time inheritance logic.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon red">🚨</div>
+          <div class="feature-title">Auto-Remediation</div>
+          <div class="feature-desc">Detected a private file in your commit? GateKeeper can automatically amend your git
+            history to strip it — no manual rebasing needed.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon teal">📦</div>
+          <div class="feature-title">Bloat Prevention</div>
+          <div class="feature-desc">Detects accidental <code
+              style="font-size:12px;font-family:JetBrains Mono,monospace">node_modules</code>, <code
+              style="font-size:12px;font-family:JetBrains Mono,monospace">venv</code>, and <code
+              style="font-size:12px;font-family:JetBrains Mono,monospace">__pycache__</code> check-ins before they bloat
+            your repository.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="fade-up">
+        <span class="section-label">Quick Start</span>
+        <h2 class="section-title">From zero to<br><em>protected in 3 commands.</em></h2>
+      </div>
+
+      <div class="steps">
+        <div class="step fade-up">
+          <div class="step-num">01</div>
+          <div class="step-content">
+            <div class="step-title">Install globally</div>
+            <div class="step-desc">Add GateKeeper to your machine with Python's package manager. It's a single global
+              install — works across all your projects.</div>
+            <div class="code-block">
+              <div class="code-bar">
+                <span class="code-lang">bash</span>
+                <button class="code-copy" onclick="copyCode(this, 'pip install gatekeeper-cli')">copy</button>
+              </div>
+              <pre><code><span class="t-prompt">$ </span>pip install gatekeeper-cli</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step fade-up">
+          <div class="step-num">02</div>
+          <div class="step-content">
+            <div class="step-title">Inject the shell shims</div>
+            <div class="step-desc">This is a one-time setup that silently wraps your <code
+                style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-green)">git</code> and
+              <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-green)">npm</code>
+              commands. Supports Bash, Zsh, and PowerShell.
+            </div>
+            <div class="code-block">
+              <div class="code-bar">
+                <span class="code-lang">bash</span>
+                <button class="code-copy" onclick="copyCode(this, 'gatekeeper install')">copy</button>
+              </div>
+              <pre><code><span class="t-prompt">$ </span>gatekeeper install
+<span class="t-success">✅ Shims injected into ~/.zshrc</span>
+<span class="t-muted">Run: source ~/.zshrc to activate</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step fade-up">
+          <div class="step-num">03</div>
+          <div class="step-content">
+            <div class="step-title">Initialize your project</div>
+            <div class="step-desc">Navigate to any repository and choose your trust model. Optionally open the
+              interactive TUI for granular file-by-file control.</div>
+            <div class="code-block">
+              <div class="code-bar">
+                <span class="code-lang">bash</span>
+                <button class="code-copy" onclick="copyCode(this, 'cd my-project && gatekeeper init')">copy</button>
+              </div>
+              <pre><code><span class="t-prompt">$ </span>cd my-secret-project && gatekeeper init
+<span class="t-info">Analyzing context... Found 9 ignore patterns.</span>
+
+<span class="t-warn t-bold">GateKeeper Initialization</span>
+<span class="t-muted">How would you like to configure?</span>
+  [<span class="t-success">1</span>] Open-Source  (All Public)
+  [<span class="t-error">2</span>] Private App  (All Private)
+  [<span class="t-info">3</span>] Mixed        (Opens TUI)</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- PIPELINE -->
+  <section class="pipeline" id="pipeline">
+    <div class="container">
+      <div class="fade-up">
+        <span class="section-label">Evaluation Pipeline</span>
+        <h2 class="section-title">Every push runs through<br><em>a two-stage firewall.</em></h2>
+      </div>
+
+      <div class="pipeline-steps fade-up">
+        <div class="pipe-step">
+          <div class="pipe-num">STAGE 0</div>
+          <div class="pipe-title">Bloat Check</div>
+          <div class="pipe-desc">Detects accidental inclusion of massive dependency folders and offers to amend your git
+            history automatically.</div>
+          <span class="pipe-badge amber">Global · Always runs</span>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num">STAGE 1</div>
+          <div class="pipe-title">IP Vault Check</div>
+          <div class="pipe-desc">Compares every outgoing file against your whitelist using a path-specificity algorithm.
+            Blocked files are surfaced instantly.</div>
+          <span class="pipe-badge blue">Per-file · Whitelist driven</span>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num">STAGE 2</div>
+          <div class="pipe-title">Secret Scan</div>
+          <div class="pipe-desc">Runs Gitleaks on all whitelisted outgoing files. Scans for 20+ enterprise secret
+            patterns without hitting memory limits.</div>
+          <span class="pipe-badge green">Gitleaks · Auto-downloaded</span>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num">RELEASE</div>
+          <div class="pipe-title">Safe to Proceed</div>
+          <div class="pipe-desc">All stages passed. GateKeeper hands control back to the real git or npm process to
+            complete the push.</div>
+          <span class="pipe-badge green">✓ Cleared</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- INSTALL CTA -->
+  <section class="install" id="install">
+    <div class="container">
+      <div class="fade-up">
+        <span class="section-label">Get Started</span>
+        <h2 class="section-title">Your next push<br><em>will be your safest.</em></h2>
+        <p style="color:var(--muted);margin-top:1rem;font-size:0.95rem">Install takes 30 seconds. Setup takes 3
+          commands. Protection is permanent.</p>
+      </div>
+
+      <div class="install-card fade-up">
+        <p
+          style="font-size:0.85rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:0.5rem;letter-spacing:0.05em">
+          STEP 1 — INSTALL</p>
+        <div class="install-cmd" onclick="copyInstall(this, 'pip install gatekeeper-cli')">
+          <code>$ pip install gatekeeper-cli</code>
+          <svg class="copy-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="5" y="5" width="9" height="9" rx="1.5" />
+            <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+          </svg>
+        </div>
+        <p
+          style="font-size:0.85rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin:1.25rem 0 0.5rem;letter-spacing:0.05em">
+          STEP 2 — INJECT SHIMS</p>
+        <div class="install-cmd" onclick="copyInstall(this, 'gatekeeper install')">
+          <code>$ gatekeeper install</code>
+          <svg class="copy-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="5" y="5" width="9" height="9" rx="1.5" />
+            <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+          </svg>
+        </div>
+        <p
+          style="font-size:0.85rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin:1.25rem 0 0.5rem;letter-spacing:0.05em">
+          STEP 3 — PROTECT A PROJECT</p>
+        <div class="install-cmd" onclick="copyInstall(this, 'gatekeeper init')">
+          <code>$ gatekeeper init</code>
+          <svg class="copy-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="5" y="5" width="9" height="9" rx="1.5" />
+            <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+          </svg>
+        </div>
+
+        <p style="margin-top:2rem;font-size:0.82rem;color:var(--muted)">
+          MIT License · Python 3.8+ · Works on macOS, Linux, Windows
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">🛡️ GATEKEEPER CLI — v0.1.1</div>
+    <ul class="footer-links">
+      <li><a href="https://github.com/gijendrap/gatekeeper">GitHub</a></li>
+      <li><a href="https://pypi.org/project/gatekeeper-cli/">PyPI</a></li>
+      <li><a href="https://github.com/gijendrap/gatekeeper?tab=readme-ov-file">Docs</a></li>
+      <li><a href="https://github.com/gijendrap/gatekeeper?tab=MIT-1-ov-file">MIT License</a></li>
+    </ul>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">
+      Zero Trust. Zero Leaks.
+    </div>
+  </footer>
+
+  <script>
+    // Intersection observer for fade-up
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    function copyCode(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'copied!';
+        btn.style.color = 'var(--accent-green)';
+        setTimeout(() => {
+          btn.textContent = 'copy';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    function copyInstall(el, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const code = el.querySelector('code');
+        const orig = code.textContent;
+        code.textContent = '✓ copied to clipboard';
+        code.style.color = 'var(--accent-green)';
+        setTimeout(() => {
+          code.textContent = orig;
+          code.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Typewriter effect for terminal
+    const lines = document.querySelectorAll('.terminal-body .t-line');
+    lines.forEach((line, i) => {
+      line.style.opacity = '0';
+      line.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => {
+        line.style.opacity = '1';
+      }, 600 + i * 280);
+    });
+  </script>
+</body>
+
+</html>
